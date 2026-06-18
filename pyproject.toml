@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "valora"
+version = "1.0.0"
+authors = [
+  { name = "Tseng, Yen Ning", email = "yageorgetseng@gmail.com" },
+]
+description = "Pricing and Risk validation system."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "darglint==1.8.1",
+    "numpy==2.4.1", 
+    "pandas==2.3.3",
+    "pip==25.2",
+    "scipy==1.16.2",
+    "matplotlib==3.10.7",
+    "psycopg2==2.9.11",
+    "SQLAlchemy==2.0.44",
+    "pyodbc==5.3.0",
+    "python-dotenv==1.2.2",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-cov",
+    "pydocstyle==6.3.0",
+    "pylint==4.0.4",
+    "pyright==1.1.408",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["valora*"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "N", "B", "D"]
+
+[tool.ruff]
+extend-include = ["*.ipynb"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=src --cov-report=term-missing --cov-report=xml:coverage.xml"
