@@ -59,7 +59,7 @@ class Date:
 
     @property
     def end_of_week(self) -> Date:
-        return self + (1 - self.day_of_week)
+        return self + (7 - self.day_of_week)
 
     @staticmethod
     def from_serial_number(n: Union[int, float]) -> Date:
