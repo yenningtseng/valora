@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 from typing import List, Optional, cast
+from functools import lru_cache
 
 from .date import Date
 from .enum import BusinessDayConvention, PeriodType
+from .data_loader import OrmLoader
 
 
 class Calendar:
@@ -335,3 +337,28 @@ class FedWireCalendar(Calendar):
                 if start_dt <= holiday <= end_dt:
                     holidays.add(holiday)
         return sorted(holidays)
+
+
+@lru_cache(maxsize=None)
+def load_twse_holiday_from_db() -> List[Date]:
+    """Load TWSE holidays from TEJ database.
+
+    Returns:
+        Sorted holiday list.
+    """
+    holidays = OrmLoader.get_twn_calendar(date_rmk__ne="")["zdate"].tolist()
+
+    return sorted(Date(dt.year, dt.month, dt.day) for dt in holidays)
+
+
+class TwseCalendar(Calendar):
+    """Implements Taiwan Stock Exchange calendar."""
+
+    def __init__(self) -> None:
+        """Initialize TwseCalendar."""
+        super().__init__(
+            name="twse",
+            official_holiday=load_twse_holiday_from_db(),
+            added_holiday=[],
+            removed_holiday=[],
+        )

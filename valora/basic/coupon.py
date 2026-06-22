@@ -13,6 +13,7 @@ from .cash_flow import CashFlow
 from .date import Date
 from .daycount import DayCount
 from .enum import BusinessDayConvention
+from .index import InterestRateIndex
 
 AverageMethod: TypeAlias = Literal["Compound-Average", "Simple-Average"]
 

@@ -8,7 +8,7 @@ from typing import Optional
 
 from .enum import BusinessDayConvention, Compounding, PeriodType
 from .term_structure import InterestTermStructure
-from .calendar import Calendar, FedWireCalendar, Target2Calendar
+from .calendar import Calendar, FedWireCalendar, Target2Calendar, TwseCalendar
 from .date import Date, Period
 
 

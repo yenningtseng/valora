@@ -36,3 +36,15 @@ class Compounding(Enum):
     DAILY360 = 360.0
     DAILY365 = 365.0
 
+
+class Frequency(Enum):
+    """Frequency convention for coupon, principal."""
+
+    ONCE = "once"
+    ANNUAL = 1.0
+    SEMIANNUAL = 2.0
+    QUARTERLY = 4.0
+    MONTHLY = 12.0
+    WEEKLY = 52.0
+    DAILY360 = 360.0
+    DAILY365 = 365.0

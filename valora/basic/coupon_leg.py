@@ -14,6 +14,7 @@ from .calendar import Calendar
 from .daycount import DayCount
 from .enum import BusinessDayConvention
 from .schedule import Schedule
+from .index import IborIndex, InterestRateIndex
 
 Scalar: TypeAlias = int | float
 DateLike: TypeAlias = Date | int
