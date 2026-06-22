@@ -227,4 +227,4 @@ class Period:
                 day = 28
             return date(year, month, day)
 
-        raise ValueError
+        raise ValueError(f"Unsupported period_type: {self.period_type}")
