@@ -1,3 +1,5 @@
+"""Schedule generation and transformation utilities."""
+
 from __future__ import annotations
 
 from copy import copy
@@ -21,6 +23,8 @@ from .enum import BusinessDayConvention, PeriodType
 
 
 class Schedule:
+    """Ordered collection of dates generated from a start, end, and tenor."""
+
     def __init__(
         self,
         beg_date: Date,
@@ -33,6 +37,7 @@ class Schedule:
         include_begin: bool = True,
         include_end: bool = True,
     ):
+        """Create a schedule definition with lazy date generation."""
         self.beg_date = beg_date
         self.end_date = end_date
         self.tenor = tenor
@@ -47,6 +52,7 @@ class Schedule:
 
     @property
     def dates(self) -> tuple[Date, ...]:
+        """Return generated or overridden schedule dates."""
         if self._dates_override is not None:
             return self._dates_override
 
@@ -56,12 +62,13 @@ class Schedule:
         return self._dates_cache
 
     def apply_eom(self) -> bool:
-
+        """Return whether end-of-month adjustment should be applied."""
         anchor_date = self.beg_date if self.forward_generate else self.end_date
 
         return self.eom_adjust and self.calendar.is_eom(anchor_date)
 
     def _generate_dates(self) -> tuple[Date, ...]:
+        """Generate the schedule dates implied by the stored definition."""
         arr: List[Date] = []
         cur: Date = cast(
             Date,
@@ -97,6 +104,7 @@ class Schedule:
         return tuple(sorted(set(arr)))
 
     def copy(self) -> Self:
+        """Return a shallow copy of the schedule."""
         new = copy(self)
         return new
 
@@ -106,6 +114,7 @@ class Schedule:
         *,
         inplace: bool,
     ) -> Self:
+        """Apply a date transformation and return or mutate a schedule."""
         target = self if inplace else self.copy()
 
         transformed = transform(target.dates)
@@ -116,12 +125,15 @@ class Schedule:
         return target
 
     def __len__(self) -> int:
+        """Return the number of dates in the schedule."""
         return len(self.dates)
 
     def __getitem__(self, key):
+        """Return dates using normal sequence indexing semantics."""
         return self.dates[key]
 
     def index(self, ids: Union[int, Iterable[int]]) -> Union[Date, List[Date]]:
+        """Return one or more dates by positional index."""
         if isinstance(ids, int):
             return self.dates[ids]
         else:
@@ -129,12 +141,14 @@ class Schedule:
             return [self.dates[i] for i in indices]
 
     def date_index(self, dt) -> Optional[int]:
+        """Return the position of ``dt`` in the schedule, if present."""
         for i, d in enumerate(self.dates):
             if d == dt:
                 return i
         return None
 
     def next_date(self, dt) -> Optional[Date]:
+        """Return the first scheduled date greater than or equal to ``dt``."""
         idx = bisect_left(self.dates, dt)
 
         if idx == len(self.dates):
@@ -143,6 +157,7 @@ class Schedule:
         return self.dates[idx]
 
     def previous_date(self, dt) -> Optional[Date]:
+        """Return the last scheduled date less than or equal to ``dt``."""
         idx = bisect_right(self.dates, dt)
 
         if idx < 0:
@@ -153,6 +168,7 @@ class Schedule:
     def append(
         self, new_dt: Union[Date, Iterable[Date]], inplace: bool = False
     ) -> Schedule:
+        """Add one or more dates to the schedule."""
 
         def _append(dates, new_dt):
             if isinstance(new_dt, Date):
@@ -166,6 +182,7 @@ class Schedule:
     def drop(
         self, new_dt: Union[Date, Iterable[Date]], inplace: bool = False
     ) -> Schedule:
+        """Remove one or more dates from the schedule."""
 
         def _append(dates, new_dt):
             if isinstance(new_dt, Date):
@@ -176,8 +193,8 @@ class Schedule:
             lambda dates: _append(dates, new_dt), inplace=inplace
         )
 
-
     def shift(self, period: Period, inplace: bool = False) -> Schedule:
+        """Shift every schedule date by the same period."""
         return self._transform_dates(
             lambda dates: (cast(Date, date + period) for date in dates), inplace=inplace
         )
@@ -190,6 +207,7 @@ class Schedule:
         inclide_upper: bool = False,
         inplace: bool = False,
     ) -> Schedule:
+        """Restrict the schedule to a bounded interval."""
 
         def _clip(dates, lower, upper, include_lower, include_upper):
             if lower is None:
@@ -218,7 +236,7 @@ class Schedule:
 
         return self._transform_dates(
             lambda dates: _clip(dates, lower, upper, include_lower, inclide_upper),
-            inplace=inplace
+            inplace=inplace,
         )
 
     def align_to_period_end(
@@ -227,6 +245,7 @@ class Schedule:
         drop_duplicates: bool = True,
         inplace: bool = False,
     ) -> Schedule:
+        """Map each date to the end of its containing period."""
 
         def _find_end_node(dates, period_type, drop_duplicates):
             if period_type == PeriodType.WEEKLY:
@@ -251,6 +270,7 @@ class Schedule:
         drop_duplicates: bool = True,
         inplace: bool = False,
     ) -> Schedule:
+        """Map each date to the beginning of its containing period."""
 
         def _find_begin_node(dates, period_type, drop_duplicates):
             if period_type == PeriodType.WEEKLY:
@@ -275,6 +295,7 @@ class Schedule:
         drop_duplicates: bool = True,
         inplace: bool = False,
     ) -> Schedule:
+        """Adjust each date using the calendar and convention provided."""
 
         def _adjust(dates, convention, drop_duplicates):
             transformed = (self.calendar.adjust(d, convention) for d in dates)
@@ -288,13 +309,13 @@ class Schedule:
         )
 
     def get_interval_year_fraction(self, daycount: DayCount) -> list[float]:
-        """Get the year fraction between scheduled dates.
+        """Return year fractions between consecutive schedule dates.
 
         Args:
-            daycount (DayCount): Day Count Convention.
+            daycount: Day-count convention used for each interval.
 
         Returns:
-            list[float]: Year fractions between scheduled dates.
+            Tuple of year fractions for adjacent date pairs.
         """
         year_fracs = []
         for d1, d2 in zip(self.dates[:-1], self.dates[1:], strict=True):
@@ -303,13 +324,13 @@ class Schedule:
         return tuple(year_fracs)
 
     def get_cumulative_year_fraction(self, daycount: DayCount) -> list[float]:
-        """Get the year fraction between the first scheduled date and other scheduled date.
+        """Return year fractions from the first date to later schedule dates.
 
         Args:
-            daycount (DayCount): Day Count Convention.
+            daycount: Day-count convention used for each interval.
 
         Returns:
-            list[float]: Year fractions between the first scheduled date and others.
+            Tuple of year fractions measured from the first date.
         """
         year_fracs = []
         reference = self.dates[0]

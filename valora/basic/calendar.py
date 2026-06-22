@@ -1,6 +1,7 @@
+"""Business-day calendars and holiday generation helpers."""
+
 from __future__ import annotations
 
-from abc import ABC
 from datetime import date, timedelta
 from typing import List, Optional, cast
 
@@ -8,7 +9,9 @@ from .date import Date
 from .enum import BusinessDayConvention, PeriodType
 
 
-class Calendar(ABC):
+class Calendar:
+    """Base class for calendars backed by holiday serial-number sets."""
+
     def __init__(
         self,
         name: str,
@@ -16,6 +19,7 @@ class Calendar(ABC):
         added_holiday: List[Date],
         removed_holiday: List[Date],
     ) -> None:
+        """Create a calendar from official and user-specified holidays."""
         self.name = name
         self.official_holiday = official_holiday
         self.added_holiday = added_holiday
@@ -24,6 +28,7 @@ class Calendar(ABC):
         self._rebuild_holiday_structures()
 
     def _rebuild_holiday_structures(self) -> None:
+        """Rebuild cached holiday arrays after any holiday update."""
         off = {d.serial_number for d in self.official_holiday}
         add = {d.serial_number for d in self.added_holiday}
         rem = {d.serial_number for d in self.removed_holiday}
@@ -33,16 +38,20 @@ class Calendar(ABC):
         self.holiday_set = set(self.holiday_serial)
 
     def is_business_day(self, dt: Date) -> bool:
+        """Return whether ``dt`` is not a holiday."""
         return dt.serial_number not in self.holiday_set
 
     def is_holiday(self, dt: Date) -> bool:
+        """Return whether ``dt`` is a holiday."""
         return dt.serial_number in self.holiday_set
 
     def add_holiday(self, dts: List[Date]) -> None:
+        """Add ad-hoc holidays to the effective holiday set."""
         self.added_holiday.extend(dts)
         self._rebuild_holiday_structures()
 
     def remove_holiday(self, dts: List[Date]) -> None:
+        """Remove dates from the effective holiday set."""
         self.removed_holiday.extend(dts)
         self._rebuild_holiday_structures()
 
@@ -53,6 +62,7 @@ class Calendar(ABC):
         include_begin: bool = True,
         include_end: bool = False,
     ) -> List[Date]:
+        """Return business dates between two endpoints."""
         if end_date < beg_date:
             raise ValueError("`beg_date` must be earlier than `end_date`.")
 
@@ -70,6 +80,7 @@ class Calendar(ABC):
         dt: Date,
         convention: BusinessDayConvention,
     ) -> Date:
+        """Adjust ``dt`` according to the given business-day convention."""
         if convention == BusinessDayConvention.NULLADJUSTMENT:
             return dt
         if self.is_business_day(dt):
@@ -102,6 +113,7 @@ class Calendar(ABC):
         dt: Date,
         period_type: PeriodType,
     ) -> Date:
+        """Return the first business day of ``dt``'s week, month, or year."""
         if period_type == PeriodType.WEEKLY:
             init_dt = cast(Date, dt - dt.day_of_week + 1)
         elif period_type == PeriodType.MONTHLY:
@@ -118,6 +130,7 @@ class Calendar(ABC):
         dt: Date,
         period_type: PeriodType,
     ) -> Date:
+        """Return the last business day of ``dt``'s week, month, or year."""
         if period_type == PeriodType.WEEKLY:
             init_dt = dt + (7 - dt.day_of_week)
         elif period_type == PeriodType.MONTHLY:
@@ -130,6 +143,7 @@ class Calendar(ABC):
         return self.adjust(init_dt, BusinessDayConvention.PRECEDING)
 
     def is_eom(self, dt: Date) -> bool:
+        """Return whether ``dt`` is the business end of month."""
         if dt == self.end_of_period(dt, PeriodType.MONTHLY):
             return True
         return False
@@ -139,6 +153,7 @@ class Calendar(ABC):
         dt: Date,
         n: int,
     ) -> Date:
+        """Move ``dt`` forward or backward by ``n`` business days."""
         if n == 0:
             return dt
 
@@ -155,6 +170,8 @@ class Calendar(ABC):
 
 
 class Target2Calendar(Calendar):
+    """TARGET2 calendar including weekends and official closure days."""
+
     def __init__(
         self,
         official_holiday: Optional[List[Date]] = None,
@@ -163,6 +180,7 @@ class Target2Calendar(Calendar):
         beg_yr: int = 1900,
         end_yr: int = 2100,
     ) -> None:
+        """Create a TARGET2 calendar for the requested year range."""
         if end_yr < beg_yr:
             raise ValueError("`end_yr` must be greater than or equal to `beg_yr`.")
 
@@ -180,6 +198,7 @@ class Target2Calendar(Calendar):
 
     @staticmethod
     def _easter_sunday(year: int) -> Date:
+        """Return Easter Sunday for ``year``."""
         a = year % 19
         b = year // 100
         c = year % 100
@@ -190,15 +209,16 @@ class Target2Calendar(Calendar):
         h = (19 * a + b - d - g + 15) % 30
         i = c // 4
         k = c % 4
-        l = (32 + 2 * e + 2 * i - h - k) % 7
-        m = (a + 11 * h + 22 * l) // 451
+        ll = (32 + 2 * e + 2 * i - h - k) % 7
+        m = (a + 11 * h + 22 * ll) // 451
 
-        month = (h + l - 7 * m + 114) // 31
-        day = ((h + l - 7 * m + 114) % 31) + 1
+        month = (h + ll - 7 * m + 114) // 31
+        day = ((h + ll - 7 * m + 114) % 31) + 1
         return Date(year, month, day)
 
     @classmethod
     def _get_full_closure_day(cls, year: int) -> List[Date]:
+        """Return TARGET2 full-closure dates for ``year``."""
         return [
             Date(year, 1, 1),
             cast(Date, cls._easter_sunday(year) - 2),
@@ -210,6 +230,7 @@ class Target2Calendar(Calendar):
 
     @classmethod
     def _generate_official_holidays(cls, beg_yr: int, end_yr: int) -> List[Date]:
+        """Generate weekends and TARGET2 holidays in the requested range."""
         start_dt = max(Date(1900, 1, 1), Date(beg_yr, 1, 1))
         end_dt = Date(end_yr, 12, 31)
         holidays: set[Date] = set()
@@ -229,6 +250,8 @@ class Target2Calendar(Calendar):
 
 
 class FedWireCalendar(Calendar):
+    """Fedwire calendar including weekends and US federal holidays."""
+
     def __init__(
         self,
         official_holiday: Optional[List[Date]] = None,
@@ -237,6 +260,7 @@ class FedWireCalendar(Calendar):
         beg_yr: int = 1900,
         end_yr: int = 2100,
     ) -> None:
+        """Create a Fedwire calendar for the requested year range."""
         if end_yr < beg_yr:
             raise ValueError("`end_yr` must be greater than or equal to `beg_yr`.")
 
@@ -254,6 +278,7 @@ class FedWireCalendar(Calendar):
 
     @staticmethod
     def _handle_substitute_holidays(holiday: Date) -> Date:
+        """Apply weekend-observed holiday rules to a fixed-date holiday."""
         if holiday.day_of_week == 6:
             return cast(Date, holiday - 1)
         if holiday.day_of_week == 7:
@@ -262,18 +287,21 @@ class FedWireCalendar(Calendar):
 
     @staticmethod
     def _nth_weekday_of_month(year: int, month: int, weekday: int, n: int) -> Date:
+        """Return the ``n``-th weekday of a month."""
         first = Date(year, month, 1)
         delta = (weekday - first.day_of_week) % 7
         return cast(Date, first + delta + (n - 1) * 7)
 
     @staticmethod
     def _last_weekday_of_month(year: int, month: int, weekday: int) -> Date:
+        """Return the last requested weekday of a month."""
         last = Date(year, month, 1).end_of_month
         delta = (last.day_of_week - weekday) % 7
         return cast(Date, last - delta)
 
     @classmethod
     def _get_full_disclosure_day(cls, year: int) -> List[Date]:
+        """Return Fedwire holiday dates for ``year``."""
         return [
             cls._handle_substitute_holidays(Date(year, 1, 1)),  # New Year's Day
             cls._nth_weekday_of_month(year, 1, 1, 3),  # Martin Luther King Jr. Day
@@ -290,6 +318,7 @@ class FedWireCalendar(Calendar):
 
     @classmethod
     def _generate_official_holidays(cls, beg_yr: int, end_yr: int) -> List[Date]:
+        """Generate weekends and Fedwire holidays in the requested range."""
         start_dt = max(Date(1900, 1, 1), Date(beg_yr, 1, 1))
         end_dt = Date(end_yr, 12, 31)
         holidays: set[Date] = set()
