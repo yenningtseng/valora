@@ -1,3 +1,4 @@
+"""Interpolator method."""
 
 from __future__ import annotations
 
@@ -8,11 +9,8 @@ from typing import Literal
 import numpy as np
 from scipy.interpolate import CubicSpline
 
-InputX = float | Sequence[float]
+InputX = int | float | Sequence[float]
 BcType = Literal["not-a-knot", "natural", "clamped"]
-
-def interplate(x, y, method):
-    pass
 
 
 class Interpolator(ABC):
@@ -30,24 +28,22 @@ class Interpolator(ABC):
         self.x = np.array(x)
         self.y = np.array(y)
         self._fitted = True
-        self._fit(x, y)
+        self._fit(self.x, self.y)
         return self
 
     @abstractmethod
-    def _fit(self, x: Sequence[float], y: Sequence[float]) -> None:
-        ...
+    def _fit(self, x: Sequence[float], y: Sequence[float]) -> None: ...
 
     @abstractmethod
-    def _predict(self, x_pred: float, extrapolate: bool = True):
-        ...
+    def _predict(self, x_pred: float) -> None: ...
 
-    def predict(self, x_pred: InputX, extrapolate: bool = True):
+    def predict(self, x_pred: InputX):
         """Pedict y given x."""
         if not getattr(self, "_fitted", False):
             raise RuntimeError("Interpolator is not fitted yet.")
-        if isinstance(x_pred, float):
-            return self._predict(x_pred, extrapolate)
-        return [self._predict(xs, extrapolate) for xs in x_pred]
+        if isinstance(x_pred, int) | isinstance(x_pred, float):
+            return self._predict(x_pred)
+        return [self._predict(xs) for xs in x_pred]
 
 
 class LinearInterpolator(Interpolator):
@@ -85,9 +81,9 @@ class LinearInterpolator(Interpolator):
             return float(y[-1] + slope * (x_pred - x[-1]))
 
         # Interpolate
-        idx = int(np.searchsorted(x, x_pred, side='right')) - 1
-        x0, x1 = x[idx], x[idx+1]
-        y0, y1 = y[idx], y[idx+1]
+        idx = int(np.searchsorted(x, x_pred, side="right")) - 1
+        x0, x1 = x[idx], x[idx + 1]
+        y0, y1 = y[idx], y[idx + 1]
         slope = (x_pred - x0) / (x1 - x0)
         return float(y0 + (y1 - y0) * slope)
 
@@ -101,8 +97,9 @@ class LogLinearInterpolator(Interpolator):
         self.extrapolate = extrapolate
 
     def _fit(self, x: Sequence[float], y: Sequence[float]) -> None:
-        if np.any(y <= 0):
+        if np.any(y <= 0) :
             raise ValueError("Log linear Interpolation requires ll y >= 0.")
+        self.x = x
         self.log_y = np.log(y)
 
     def _predict(self, x_pred):
@@ -129,30 +126,48 @@ class LogLinearInterpolator(Interpolator):
             return float(np.exp(y[-1] + slope * (x_pred - x[-1])))
 
         # Interpolate
-        idx = int(np.searchsorted(x, x_pred, side='right')) - 1
-        x0, x1 = x[idx], x[idx+1]
-        y0, y1 = y[idx], y[idx+1]
+        idx = int(np.searchsorted(x, x_pred, side="right")) - 1
+        x0, x1 = x[idx], x[idx + 1]
+        y0, y1 = y[idx], y[idx + 1]
         slope = (x_pred - x0) / (x1 - x0)
         return float(np.exp(y0 + (y1 - y0) * slope))
 
 
 class CubicSplineInterpolator(Interpolator):
+    """Cubic Spline Interpolation."""
 
-    def __init__(self, bc_type: BcType = "natural", extrapolate: bool = True):
+    def __init__(self, bc_type: BcType = "natural", extrapolate: bool = True) -> None:
+        """Initialize Cubic spline interpolator."""
         self._fitted = False
         self.bc_type = bc_type
         self.extrapolate = extrapolate
 
     def _fit(self, x: Sequence[float], y: Sequence[float]) -> float:
-        self._cs = CubicSpline(
-            x, y, bc_type=self.bc_type, extrapolate=self.extraploate
-        )
+        """Fit y given x."""
+        self._cs = CubicSpline(x, y, bc_type=self.bc_type, extrapolate=self.extrapolate)
 
     def _predict(self, x_pred) -> float:
+        """Predict y given x."""
         return float(self._cs(x_pred))
 
     def derivative_1st(self, x_pred) -> float:
+        """Compute 1st order of derivative given x.
+
+        Args:
+            x_pred: x given for 1st order derivative
+
+        Returns:
+            float: First order derivative
+        """
         return float(self._cs(x_pred, 1))
 
     def derivative_2nd(self, x_pred) -> float:
+        """Compute 2nd order of derivative given x.
+
+        Args:
+            x_pred: x given for 2nd order derivative
+
+        Returns:
+            float: Second order derivative
+        """
         return float(self._cs(x_pred, 2))

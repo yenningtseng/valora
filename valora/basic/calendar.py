@@ -8,7 +8,6 @@ from functools import lru_cache
 
 from .date import Date
 from .enum import BusinessDayConvention, PeriodType
-from .data_loader import OrmLoader
 
 
 class Calendar:
@@ -341,6 +340,8 @@ class FedWireCalendar(Calendar):
 
 @lru_cache(maxsize=None)
 def load_twse_holiday_from_db() -> List[Date]:
+    from .data_loader import OrmLoader
+
     """Load TWSE holidays from TEJ database.
 
     Returns:

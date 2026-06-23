@@ -13,7 +13,6 @@ from sqlalchemy import select
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.automap import automap_base
 
-from .calendar import FedWireCalendar
 from .data_engine import bill_engine, engine, twn_engine
 from .date import Date, Period
 from .daycount import Act360, Act365Fixed, DayCount
@@ -254,8 +253,9 @@ class Normalizer:
         return None
 
     @staticmethod
-    def get_calendar(input: Any) -> FedWireCalendar:
+    def get_calendar(input: Any):
         """Return the default calendar used by loader utilities."""
+        from .calendar import FedWireCalendar
         del input
         return FedWireCalendar()
 

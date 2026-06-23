@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 import numpy as np
 from typing import (
@@ -12,7 +13,8 @@ from typing import (
 )
 
 from .date import Date
-from .calendar import Calendar
+if TYPE_CHECKING:
+    from .calendar import Calendar
 
 
 class DayCount(ABC):
